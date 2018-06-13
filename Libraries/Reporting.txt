@@ -1,0 +1,491 @@
+
+Option Explicit
+Dim strReportFilePathName
+Dim strTempReportFile
+Dim strSnapShotsPath
+Dim strTimeStamp
+Dim mstrStartTime
+Dim strExecutionStatus
+Dim strBasicFolderPath
+Dim mstrResultsFolder
+
+
+'************************* If the report folder does not exist create the directory*************
+
+strTimeStamp = fn_GetTimeStamp()
+mstrResultsFolder= "Execution_Folder" & year(now) & month(now) & day(now) & hour(now) & minute(now) & second(now)
+'****************************************************************************************************************************
+' Func/Proc Name : cp_SetResultLog
+' Purpose : To create the Results file and to update it with the test case under execution
+' Author : hra
+' Parameters : pstrBasicFolderPath : Accepts the basic folder path
+' pstrResultsFolder : Accepts the results folder name
+' pstrTestCaseID : Accepts the name of the test case
+' pstrTestCaseDesc : Accepts the Test case description
+' Return Values : NA
+'****************************************************************************************************************************
+Public Sub cp_SetResultLog(pstrTestCaseID,pstrTestCaseDesc)
+
+Dim objFileSystemObject
+Dim objTextFileObject
+Dim strResultsFile
+Dim strDefaultReportFolderPath
+Dim mstrBasicFolderPath
+Dim mblnFinalStatus
+
+Dim objTempFile
+
+Dim strFileText
+Dim intPos
+Dim objFolder
+
+' strTimeStamp = fn_GetTimeStamp()
+strBasicFolderPath = Environment.Value("ResultFolder")
+Environment.Value("StartTime") = Timer
+
+mstrBasicFolderPath=Environment.Value("ResultFolder")
+
+mstrBasicFolderPath = PathFinder(mstrBasicFolderPath)
+
+
+
+
+mblnFinalStatus=True
+mstrStartTime=now
+
+strReportFilePathName=mstrBasicFolderPath & "\" & mstrResultsFolder& "\" & strTimeStamp & ".html"
+strTempReportFile=mstrBasicFolderPath & "\" & mstrResultsFolder & "\" & strTimeStamp & "_temp.html"
+
+strSnapShotsPath=strBasicFolderPath & "\" & mstrResultsFolder & "\Snapshot"
+
+
+Set objFileSystemObject = CreateObject("Scripting.FileSystemObject")
+
+If not objFileSystemObject.FolderExists(mstrBasicFolderPath)Then
+Set objFolder=objFileSystemObject.createFolder(mstrBasicFolderPath)
+End if
+If not objFileSystemObject.FolderExists(mstrBasicFolderPath & "\" & mstrResultsFolder )Then
+Set objFolder=objFileSystemObject.createFolder(mstrBasicFolderPath & "\" & mstrResultsFolder)
+End If
+
+If Not (objFileSystemObject.FolderExists(strSnapShotsPath)) Then
+objFileSystemObject.CreateFolder strSnapShotsPath
+End If
+
+If not objFileSystemObject.FileExists(strReportFilePathName) Then
+Set objTextFileObject= objFileSystemObject.CreateTextFile(strReportFilePathName, True)
+Set objTempFile= objFileSystemObject.CreateTextFile(strTempReportFile, True)
+
+'Write initial content of file
+objTextFileObject.WriteLine "<!DOCTYPE HTML PUBLIC ""-//W3C//DTD HTML 4.0 Transitional//EN"">"
+objTextFileObject.WriteLine "<HTML><BODY><CENTER>"
+objTextFileObject.WriteLine "<H1><FONT COLOR=#990000 face=""Arial"">Result Log</FONT></H1><BR>"
+
+objTextFileObject.WriteLine "<TABLE ALIGN=""Center"" BORDER=""1"" WIDTH=40% CELLPADDING=""1"" >"
+objTextFileObject.WriteLine "<TR BGCOLOR=""#CCCC99"">"
+objTextFileObject.WriteLine "<TD align=""left"" valign=""top""><FONT COLOR=#559999 face=""Arial""><small><B>Total Test Cases Passed: 0</B></small></FONT></TD>"
+objTextFileObject.WriteLine "</TR>"
+objTextFileObject.WriteLine "<TR BGCOLOR=""#CCCC99"">"
+objTextFileObject.WriteLine "<TD align=""left"" valign=""top""><FONT COLOR=#559999 face=""Arial""><small><B>Total Test Cases Failed: 0</B></small></FONT></TD>"
+objTextFileObject.WriteLine "</TR>"
+objTextFileObject.WriteLine "</TABLE>"
+objTextFileObject.WriteLine "<BR>"
+Else
+Set objTextFileObject= objFileSystemObject.OpenTextFile(strReportFilePathName,1)
+strFileText=objTextFileObject.readall
+intPos=instr(1,strFileText,"<!--LOGDETAILS-->",vbTextCompare)
+If intPos > 0 Then
+strFileText=mid(strFileText,1,intPos-1)
+objTextFileObject.close
+End If
+
+Set objTextFileObject= objFileSystemObject.OpenTextFile(strReportFilePathName, 2)
+objTextFileObject.write strFileText
+
+Set objTempFile= objFileSystemObject.OpenTextFile(strTempReportFile, 8)
+
+End If
+
+'=============== writing to the main file =======================================================
+objTextFileObject.WriteLine "<TABLE ALIGN=""Center"" BORDER=""0"" WIDTH=100% CELLPADDING=""1"" >"
+objTextFileObject.WriteLine "<TR BGCOLOR=""#aeaeff"">" '#99ccff #CCCC99
+objTextFileObject.WriteLine "<TH width=10% rowspan=""1"" align=""left"" valign=""top""><FONT COLOR=black face=""Arial""><small><B><a href=""#" & now & """>" & pstrTestCaseID & "</a></B></small></FONT></TH>"
+objTextFileObject.WriteLine "<TH width=65% colspan=""5"" align=""left"" valign=""center""><FONT COLOR=black face=""Arial""><small>" & pstrTestCaseDesc & "</small></FONT></TH>"
+'objTextFileObject.WriteLine "</TR>"
+'objTextFileObject.WriteLine "<TR BGCOLOR=""#aeaeff"">" '#CCCC99 #99ccff #996600
+'objTextFileObject.WriteLine "<TH width=50% colspan=""2""align=""left"" valign=""center""><FONT COLOR=black face=""Arial""><small>Date: " & now & "</small></FONT></TH>"
+objTextFileObject.WriteLine "<TH width=15% colspan=""1""align=""left"" valign=""center""><FONT COLOR=black face=""Arial""><small><B>Duration:</B></small></FONT></TH>"
+objTextFileObject.WriteLine "<TH width=10% align=""left"" valign=""center""><FONT COLOR=black face=""Arial""><small><B>Status:</B></small></FONT></TH>"
+objTextFileObject.WriteLine "</TR>"
+objTextFileObject.Close
+
+'=============== writing to the temp file =======================================================
+objTempFile.WriteLine "<!--LOGDETAILS-->"
+objTempFile.WriteLine "<BR>"
+objTempFile.WriteLine "<TABLE ALIGN=""Center"" BORDER=""1"" WIDTH=100% CELLPADDING=""1"" >"
+objTempFile.WriteLine "<TR BGCOLOR=""#996600"">" '#CCCC99
+objTempFile.WriteLine "<TH width=15% rowspan=""1"" align=""left"" valign=""top""><FONT COLOR=white face=""Arial""><small><B><a name=""" & now & """>" & pstrTestCaseID & "</a></B></small></FONT></TH>" '#559999
+objTempFile.WriteLine "<TH width=85% colspan=""5"" align=""left"" valign=""bottom""><FONT COLOR=white face=""Arial""><small>" & pstrTestCaseDesc & "</small></FONT></TH>"
+objTempFile.WriteLine "</TR>"
+objTempFile.WriteLine "<TR BGCOLOR=""#996600"">" '#CCCC99
+objTempFile.WriteLine "<TH width=50% colspan=""2""align=""left"" valign=""center""><FONT COLOR=white face=""Arial""><small>Date: " & now & "</small></FONT></TH>"
+objTempFile.WriteLine "<TH width=35% colspan=""3""align=""left"" valign=""center""><FONT COLOR=white face=""Arial""><small><B>Duration:</B></small></FONT></TH>"
+objTempFile.WriteLine "<TH width=15% align=""left"" valign=""center""><FONT COLOR=white face=""Arial""><small><B>Status:</B></small></FONT></TH>"
+objTempFile.WriteLine "</TR>"
+
+objTempFile.WriteLine "<TR bgColor=#996600>"
+objTempFile.WriteLine "<TH ><FONT COLOR=#FF9933 face=""Arial""><small>Step</small></FONT></TH>"
+objTempFile.WriteLine "<TH><FONT COLOR=#FF9933 face=""Arial""><small>Step Details</small></FONT></TH>"
+objTempFile.WriteLine "<TH><FONT COLOR=#FF9933 face=""Arial""><small>Expected Result</small></FONT></TH>"
+objTempFile.WriteLine "<TH><FONT COLOR=#FF9933 face=""Arial""><small>Actual Result</small></FONT></TH>"
+objTempFile.WriteLine "<TH><FONT COLOR=#FF9933 face=""Arial""><small>Status</small></FONT></TH>"
+objTempFile.WriteLine "<TH width=""80"" ><FONT COLOR=#FF9933 face=""Arial""><small>Snap Shots</small></FONT></TH>"
+objTempFile.WriteLine "</TR>"
+objTempFile.Close
+
+'Reporter.Filter=rfEnableAll
+Reporter.reportEvent micDone,"Starting Test","Starting Execution of Test Case : " & pstrTestCaseID
+'Reporter.Filter=rfDisableAll
+
+
+End Sub
+
+
+
+'****************************************************************************************************************************
+' Func/Proc Name : cp_ReportLog
+' Purpose : To update the test results file
+' Author : hra
+' Parameters : pstrStep : Accepts the name of the step
+' pstrStepDetails : Accepts the result of the step
+' pstrExpectedResult : Accepts the expected result
+' pstrActualResult : Accepts the actual result
+' pstrStatus : Accepts the status (Pass/Fail) of the step
+' pblnSnapShot : True/False to take the snap shot of the desktop or not
+' Return Values : NA
+'****************************************************************************************************************************
+Public sub cp_ReportLog(pstrStep,pstrStepDetails,pstrExpectedResult,pstrActualResult,pstrStatus,pblnSnapShot)
+Dim objFileSystemObject
+Dim objTextFileObject
+Dim strColor
+Dim strResultsFile
+Dim strSnapsFileName
+Dim intRandNum
+Dim mblnFinalStatus
+Dim strCompleteSnapShotPath
+' Dim strTimeStamp
+'
+' strTimeStamp = fn_GetTimeStamp()
+
+' If strBasicFolderPath="" Then
+' mstrBasicFolderPath=mstrDefaultReportFolderPath
+' mstrResultsFolder= "Execution_Folder" & year(now) & month(now) & day(now) & hour(now) & minute(now) & second(now)
+' cp_SetResultLog mstrBasicFolderPath,mstrResultsFolder,"Test Case ID not provided","Test Case Desc not provided"
+' End If
+' ******************** Reset the value of the snapshot flag for every time ****************
+pblnSnapShot = False
+
+
+Set objFileSystemObject = CreateObject("Scripting.FileSystemObject")
+
+If Not objFileSystemObject.FileExists(strTempReportFile) Then Exit Sub
+
+Set objTextFileObject= objFileSystemObject.OpenTextFile(strTempReportFile, 8)
+
+
+If Trim(UCase(pstrStatus))="FAIL" Then
+strColor="#FF3300"
+else
+strColor="#003399"
+End If
+
+''':Code to add actual time taken by the step
+Dim TimeIt
+
+TimeIt = Timer - Environment.Value("StartTime")
+Environment.Value("StartTime")=Timer
+pstrStep = pstrStep & " [Time (s):" & Round(TimeIt,2) & "]"
+
+objTextFileObject.WriteLine "<TR bgcolor=""#ffcc66"">"
+objTextFileObject.WriteLine "<TD><FONT COLOR=" & strColor & " face=""Arial""><small>" & pstrStep & "</small></FONT></TD>"
+objTextFileObject.WriteLine "<TD><FONT COLOR=" & strColor & " face=""Arial""><small>" & pstrStepDetails & "</small></FONT></TD>"
+objTextFileObject.WriteLine "<TD><FONT COLOR=" & strColor & " face=""Arial""><small>" & pstrExpectedResult & "</small></FONT></TD>"
+objTextFileObject.WriteLine "<TD><FONT COLOR=" & strColor & " face=""Arial""><small>" & pstrActualResult & "</small></FONT></TD>"
+
+'Reporter.Filter=rfEnableAll
+select case Trim(ucase(pstrStatus))
+Case "PASS"
+objTextFileObject.WriteLine "<TD><FONT COLOR=#005e00 face=""Arial""><B><small>" & pstrStatus & "</small></B></FONT></TD>"
+Reporter.reportEvent micPass,pstrStep,pstrStepDetails
+strExecutionStatus = "Pass"
+Case "FAIL"
+mblnFinalStatus=False
+objTextFileObject.WriteLine "<TD><FONT COLOR=#FF3300 face=""Arial""><B><small>" & pstrStatus & "</small></B></FONT></TD>"
+Reporter.reportEvent micFail,pstrStep,pstrStepDetails
+strExecutionStatus = "Fail"
+pblnSnapShot=True
+Case "DONE"
+objTextFileObject.WriteLine "<TD><FONT COLOR=#c0c0c0 face=""Arial""><B><small>" & pstrStatus & "</small></B></FONT></TD>"
+Reporter.reportEvent micDone,pstrStep,pstrStepDetails
+Case "WARNING"
+objTextFileObject.WriteLine "<TD><FONT COLOR=#ff8080 face=""Arial""><B><small>" & pstrStatus & "</small></B></FONT></TD>"
+Reporter.reportEvent micDone,pstrStep,pstrStepDetails
+end Select
+'Reporter.Filter=rfDisableAll
+
+If pblnSnapShot=True Then
+Randomize
+intRandNum=Int((30000 * Rnd) + 1)
+strSnapsFileName=year(now) & month(now) & day(now) & hour(now) & minute(now) & second(now) & intRandNum &"Snap.png"
+Desktop.CaptureBitmap strSnapShotsPath & "\" & strSnapsFileName , 0
+strCompleteSnapShotPath = strSnapShotsPath & "\" & strSnapsFileName
+objTextFileObject.WriteLine "<TD> <a href=""" & strCompleteSnapShotPath & """ target=""_blank""><img src = """ & strCompleteSnapShotPath & """ width=""100"" height=""18""></TD>"
+else
+objTextFileObject.WriteLine "<TD> </TD>"
+End If
+
+objTextFileObject.WriteLine "</TR>"
+objTextFileObject.Close
+Set objFileSystemObject =nothing
+
+End sub
+
+
+'****************************************************************************************************************************
+' Func/Proc Name : cp_EndReport
+' Purpose : To finalize the results for a particular test case
+' Author : hra
+' Parameters : pstrTestCase : Accepts the name of the Test case
+' Return Values : NA
+'****************************************************************************************************************************
+Public sub cp_EndReport(pstrTestCase,pblnFinalStatus)
+' For File system Object
+Dim objFileSystemObject
+' For text file object
+Dim objTextFileObject
+' For text file object
+Dim objTempFile
+' To store the contents the file
+Dim strfleText
+' To store the execution time
+Dim strExecutionTime
+' To store the end time
+Dim strEndTime
+Dim strStartTime
+' To store temporary file name
+Dim strResultsFile
+
+Dim intPos1
+Dim intPos2
+Dim intPassed
+Dim strPassNo
+Dim intFailed
+Dim strFailNo
+Dim strToUpdate
+Dim strUpdateWith
+Dim strUpdateString
+Dim mblnFinalStatus
+Dim strExecutionSummary
+' Dim strTimeStamp
+'
+' strTimeStamp = fn_GetTimeStamp()
+' Getting the end time
+strEndTime=now
+' Finding the execution time
+strExecutionTime= Round(datediff("s",mstrStartTime,strEndTime)/60,2) & " minutes"
+' strExecutionTime= datediff("n",mstrStartTime,strEndTime) & " minutes"
+
+' Creating an object of File system
+Set objFileSystemObject = CreateObject("Scripting.FileSystemObject")
+
+
+Set objFileSystemObject = CreateObject("Scripting.FileSystemObject")
+
+'=========================== updating the main file =======================================================
+' Opening the results file in append mode
+Set objTextFileObject= objFileSystemObject.OpenTextFile(strReportFilePathName, 8)
+' Appeding the file with the closing Tag
+objTextFileObject.WriteLine "</TABLE>"
+' Closing the file
+objTextFileObject.close
+' Opening the results file in read mode
+Set objTextFileObject= objFileSystemObject.OpenTextFile(strReportFilePathName, 1)
+' Read the full contents of the file
+strfleText=objTextFileObject.ReadAll
+objTextFileObject.close
+
+intPos1=instr(1,strfleText,"Total Test Cases Passed:",vbTextCompare)
+intPos2=instr(intPos1,strfleText,"</B>",vbTextCompare)
+strPassNo=Trim(mid(strfleText,intPos1+25,intPos2-intPos1-25))
+intPassed=Cint(strPassNo)
+
+intPos1=instr(1,strfleText,"Total Test Cases Failed:",vbTextCompare)
+intPos2=instr(intPos1,strfleText,"</B>",vbTextCompare)
+strFailNo=Trim(mid(strfleText,intPos1+25,intPos2-intPos1-25))
+intFailed=Cint(strFailNo)
+
+If pblnFinalStatus = "Pass" Then
+mblnFinalStatus=True
+else
+mblnFinalStatus=False
+End If
+If mblnFinalStatus=True Then
+intPassed=intPassed+1
+strToUpdate="<TD align=""left"" valign=""top""><FONT COLOR=#559999 face=""Arial""><small><B>Total Test Cases Passed: " & intPassed-1 & "</B></small></FONT></TD>"
+strUpdateWith= "<TD align=""left"" valign=""top""><FONT COLOR=#559999 face=""Arial""><small><B>Total Test Cases Passed: " & intPassed & "</B></small></FONT></TD>"
+else
+intFailed=intFailed+1
+strToUpdate="<TD align=""left"" valign=""top""><FONT COLOR=#559999 face=""Arial""><small><B>Total Test Cases Failed: " & intFailed-1 & "</B></small></FONT></TD>"
+strUpdateWith= "<TD align=""left"" valign=""top""><FONT COLOR=#559999 face=""Arial""><small><B>Total Test Cases Failed: " & intFailed & "</B></small></FONT></TD>"
+End If
+
+strfleText=replace(strfleText, strToUpdate,strUpdateWith,1)
+
+' Setting the string that needs to be updated in the results file : Updating Execution Time
+strUpdateString="<TH width=15% colspan=""1""align=""left"" valign=""center""><FONT COLOR=black face=""Arial""><small><B>Duration: " & strExecutionTime & "</B></small></FONT></TH>"
+' Replacing the line in strText
+strfleText=replace(strfleText,"<TH width=15% colspan=""1""align=""left"" valign=""center""><FONT COLOR=black face=""Arial""><small><B>Duration:</B></small></FONT></TH>",strUpdateString,1)
+' Setting update sting according to Pass/ Fail of the test case : Updating status
+If mblnFinalStatus=True And strExecutionStatus = "Pass" Then
+strUpdateString="<TH width=10% align=""left"" valign=""center""><FONT COLOR=black face=""Arial""><small><B>Status: </B></small></FONT><FONT COLOR=#005e00 face=""Arial""><small><B>Pass</B></small></FONT></TH>"
+Else
+strUpdateString="<TH width=10% align=""left"" valign=""center""><FONT COLOR=black face=""Arial""><small><B>Status: </B></small></FONT><FONT COLOR=#FF3300 face=""Arial""><small><B>Fail</B></small></FONT></TH>"
+End If
+' Replacing the line in strText"
+strfleText=replace(strfleText, "<TH width=10% align=""left"" valign=""center""><FONT COLOR=black face=""Arial""><small><B>Status:</B></small></FONT></TH>",strUpdateString,1)
+
+' Opening the Results file in write mode
+Set objTextFileObject= objFileSystemObject.OpenTextFile(strReportFilePathName, 2,True)
+' writing to the results file the updated contents held in the strText
+objTextFileObject.Write strfleText
+objTextFileObject.close
+
+'=========================== updating the temp file =======================================================
+' Opening the results file in append mode
+Set objTempFile= objFileSystemObject.OpenTextFile(strTempReportFile, 8)
+' Appeding the file with the closing Tag
+objTempFile.WriteLine "</TABLE>"
+objTempFile.WriteLine "<BR>"
+' Closing the file
+objTempFile.close
+' Opening the results file in read mode
+Set objTempFile= objFileSystemObject.OpenTextFile(strTempReportFile, 1)
+' Read the full contents of the file
+strfleText=objTempFile.ReadAll
+objTempFile.close
+
+' Setting the string that needs to be updated in the results file
+strUpdateString="<TH width=35% colspan=""3""align=""left"" valign=""center""><FONT COLOR=white face=""Arial""><small><B>Duration: " & strExecutionTime & "</B></small></FONT></TH>"
+' Replacing the line in strText
+strfleText=replace(strfleText,"<TH width=35% colspan=""3""align=""left"" valign=""center""><FONT COLOR=white face=""Arial""><small><B>Duration:</B></small></FONT></TH>",strUpdateString,1)
+' Setting update sting according to Pass/ Fail of the test cae
+If mblnFinalStatus=True And strExecutionStatus = "Pass" Then
+strUpdateString="<TH width=15% align=""left"" valign=""center""><FONT COLOR=white face=""Arial""><small><B>Status: </B></small></FONT><FONT COLOR=#005e00 face=""Arial""><small><B>Pass</B></small></FONT></TH>"
+else
+strUpdateString="<TH width=15% align=""left"" valign=""center""><FONT COLOR=white face=""Arial""><small><B>Status: </B></small></FONT><FONT COLOR=#FF3300 face=""Arial""><small><B>Fail</B></small></FONT></TH>"
+End If
+' Replacing the line in strText
+strfleText=replace(strfleText, "<TH width=15% align=""left"" valign=""center""><FONT COLOR=white face=""Arial""><small><B>Status:</B></small></FONT></TH>",strUpdateString,1)
+' Opening the Results file in write mode
+Set objTempFile= objFileSystemObject.OpenTextFile(strTempReportFile, 2,True)
+' writing to the results file the updated contents held in the strText
+objTempFile.Write strfleText
+objTempFile.close
+
+'=========================== Appending the main file with the logs in the temp file =======================================================
+' Opening the main results file in append mode
+Set objTextFileObject= objFileSystemObject.OpenTextFile(strReportFilePathName, 8)
+' Opening the temp results file in read mode
+Set objTempFile= objFileSystemObject.OpenTextFile(strTempReportFile,1)
+strfleText=objTempFile.readall
+objTempFile.close
+objTextFileObject.write strfleText
+objTextFileObject.close
+Set objFileSystemObject =nothing
+'Enabling QTP Logging
+'Reporter.Filter=rfEnableAll
+' Reporting to the QTP Results
+Reporter.reportEvent micDone,"Stoping Test","Execution of Test Case : " & pstrTestCase & " ends"
+
+'End date
+
+strExecutionSummary=strBasicFolderPath & "\ExecutionLogs\ExecutionSummary.xls"
+
+
+End Sub
+'***************************************************************************************************************************
+'================================================================================================
+'================================================================================================
+' Name : fn_GetTimeStamp
+' Desc : Creates a timestamp of Format yyyymmddhhMMss as per Local Machine Time
+' Returns : String : timestamp of Format yyyymmddhhMMss
+' Input : N.A.
+'
+' Created : P. Patel : 15-Apr-2008 : Initial Draft
+'------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Function fn_GetTimeStamp()
+
+' Private Variables
+Dim sTimestamp ' Holds the string of timestamp
+Dim objNow ' Holds current Date and Time
+
+' Initialization
+objNow = Now
+
+' Create TimeStamp
+sTimestamp = fn_Pad(CStr(Year(objNow)),CStr(0),4,"Left")
+sTimestamp = sTimestamp & fn_Pad(CStr(Month(objNow)),CStr(0),2,"Left") ' between 1 and 12, inclusive
+sTimestamp = sTimestamp & fn_Pad(CStr(Day(objNow)),CStr(0),2,"Left") ' between 1 and 31, inclusive
+sTimestamp = sTimestamp & fn_Pad(CStr(Hour(objNow)),CStr(0),2,"Left") ' between 0 and 23, inclusive
+sTimestamp = sTimestamp & fn_Pad(CStr(Minute(objNow)),CStr(0),2,"Left") ' between 0 and 59, inclusive
+sTimestamp = sTimestamp & fn_Pad(CStr(Second(objNow)),CStr(0),2,"Left") ' between 0 and 59, inclusive
+
+' Return Timestamp
+fn_GetTimeStamp = sTimestamp
+
+End Function ' fn_GetTimeStamp
+
+'================================================================================================
+
+' Name : fn_Pad
+' Desc : Pads given String with a Given Character to Right or Left to return a String of given length
+' Returns : String : A new string of given Length with given String padded with given Character to given Position(Right|Left)
+' Input :
+' 01) sString : String : String to be padded
+' 02) cCharacter : Character : Character to be padded with
+' 03) iTotalLength : Integer : Required length of return string
+' 04) sPosition : String : Position of padding (Right|Left)
+'
+' Created : P. Patel : 15-Apr-2008 : Initial Draft
+'------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Function fn_Pad(sString, cCharacter, iTotalLength, sPosition)
+
+' Private Variables
+Dim sNewString ' Holds the new String to be returned
+Dim iCounter ' Holds a General Counter for the Loops
+
+' Initialization
+sNewString = sString
+
+' Check the Length
+If Len(sString) < iTotalLength Then
+' Check the Position
+If UCase(Trim(sPosition)) = "RIGHT" Then
+' Loop the Counter till given position
+For iCounter = 1 To iTotalLength - Len(sString) Step 1
+' Concatenate Character to Right
+sNewString = sNewString & cCharacter
+Next
+ElseIf UCase(Trim(sPosition)) = "LEFT" Then
+' Loop the Counter till given position
+For iCounter = 1 To iTotalLength - Len(sString) Step 1
+' Concatenate Character to Left
+sNewString = cCharacter & sNewString
+Next
+End If ' Position
+End If ' String Length
+
+' Return Value
+fn_Pad = sNewString
+
+End Function 'fn_Pad
